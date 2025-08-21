@@ -46,6 +46,7 @@ class App(tk.Tk):
         self.ffmpeg_path = tk.StringVar()
         self.ffprobe_path = tk.StringVar()
         self.num_frames = tk.IntVar(value=300)
+        self.stop_event = None
 
         # --- Carregar caminhos salvos ---
         self.load_paths()
@@ -104,9 +105,17 @@ class App(tk.Tk):
         ttk.Scale(settings_frame, from_=1, to=300, orient=tk.HORIZONTAL, variable=self.num_frames, command=lambda s: self.num_frames.set(int(float(s)))).grid(row=0, column=1, sticky="ew", padx=5)
         ttk.Label(settings_frame, textvariable=self.num_frames).grid(row=0, column=2)
 
-        # --- Botão de Execução ---
-        self.run_button = ttk.Button(main_frame, text="Iniciar Extração", command=self.start_extraction_thread)
-        self.run_button.grid(row=5, column=0, columnspan=3, pady=10, sticky="ew")
+        # --- Botões de Ação ---
+        action_frame = ttk.Frame(main_frame)
+        action_frame.grid(row=5, column=0, columnspan=3, pady=10, sticky="ew")
+        action_frame.columnconfigure(0, weight=1)
+        action_frame.columnconfigure(1, weight=1)
+
+        self.run_button = ttk.Button(action_frame, text="Iniciar Extração", command=self.start_extraction_thread)
+        self.run_button.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+
+        self.stop_button = ttk.Button(action_frame, text="Parar Extração", command=self.stop_extraction, state=tk.DISABLED)
+        self.stop_button.grid(row=0, column=1, sticky="ew", padx=(5, 0))
 
         # --- Log ---
         log_frame = ttk.Frame(main_frame)
@@ -176,6 +185,12 @@ class App(tk.Tk):
                     messagebox.showerror("Erro", f"A pasta selecionada é inválida ou as ferramentas não puderam ser executadas.\n\nDetalhes: {error_msg}")
                     self.log(f"Falha ao verificar a pasta selecionada.")
 
+    def stop_extraction(self):
+        if self.stop_event:
+            self.log("Sinal de parada enviado...")
+            self.stop_event.set()
+            self.stop_button.config(state=tk.DISABLED)
+
     def start_extraction_thread(self):
         if not self.video_path.get() or not self.output_dir.get():
             messagebox.showerror("Erro", "Por favor, especifique o arquivo de vídeo e o diretório de saída.")
@@ -187,6 +202,9 @@ class App(tk.Tk):
 
         self.log_text.delete(1.0, tk.END)
         self.run_button.config(state=tk.DISABLED, text="Extraindo...")
+        self.stop_button.config(state=tk.NORMAL)
+
+        self.stop_event = threading.Event()
 
         extraction_thread = threading.Thread(
             target=self.run_extraction,
@@ -201,9 +219,11 @@ class App(tk.Tk):
             num_frames=self.num_frames.get(),
             ffmpeg_path=self.ffmpeg_path.get(),
             ffprobe_path=self.ffprobe_path.get(),
-            logger_callback=self.log
+            logger_callback=self.log,
+            stop_event=self.stop_event
         )
         self.run_button.config(state=tk.NORMAL, text="Iniciar Extração")
+        self.stop_button.config(state=tk.DISABLED)
 
 if __name__ == "__main__":
     import multiprocessing

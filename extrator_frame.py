@@ -106,7 +106,7 @@ def get_video_duration(video_path, ffprobe_path='ffprobe', logger_callback=print
         return None
 
 
-def extrair_frames_aleatorios(video_path, output_dir, num_frames=1, ffmpeg_path='ffmpeg', ffprobe_path='ffprobe', logger_callback=print):
+def extrair_frames_aleatorios(video_path, output_dir, num_frames=1, ffmpeg_path='ffmpeg', ffprobe_path='ffprobe', logger_callback=print, stop_event=None):
     """
     Extrai um número especificado de frames aleatórios de um vídeo.
     """
@@ -130,6 +130,9 @@ def extrair_frames_aleatorios(video_path, output_dir, num_frames=1, ffmpeg_path=
 
     extracted_count = 0
     for i in range(num_frames):
+        if stop_event and stop_event.is_set():
+            logger_callback("Extração interrompida pelo usuário.")
+            break
         random_timestamp = random.uniform(0, duration)
         output_filename = f"frame_aleatorio_{i+1}_tempo_{random_timestamp:.2f}s.jpg"
         output_filepath = os.path.join(output_dir, output_filename)
